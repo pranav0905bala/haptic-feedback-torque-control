@@ -8,7 +8,7 @@ Accurate torque feedback is critical in rehabilitation and human-robot interacti
 
 ## System Architecture
 - Actuation system for torque generation  
-- Sensor feedback loop for real-time measurement  
+- Feedback loop for real-time measurement  
 - MATLAB/Simulink-based control system  
 - QUARC for real-time implementation  
 
@@ -18,9 +18,8 @@ Accurate torque feedback is critical in rehabilitation and human-robot interacti
 - QUARC  
 
 ## Implementation
-- Designed and tuned a PID controller for torque regulation  
+- Designed and tuned a force-based PI controller for robot movements
 - Integrated hardware feedback with real-time control loop  
-- Implemented signal acquisition and filtering  
 - Performed iterative tuning for system stability  
 
 ## Results
