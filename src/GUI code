@@ -1,0 +1,225 @@
+
+function [theta, FEtau,TrialStart, cursorTau, HomeColor, MaintainPos, MaintainColor, MovePos, MoveColor, ReturnPos, ReturnColor, TargetPos, TargetColor, StopSim, RUtau,d, successfulTrial, count, ClockReset, ResetTimer, TargetTimer, MovementTimer,  State  ] = fcn(tauJ, th, tauDes ...
+    , successfulTrial, count, ClockReset,  TimeInReset, TimeInTarget, TimeMoving,  State  )
+
+%%% Extract %%%
+FEtau = tauJ(1);
+RUtau = tauJ(2);
+MaxTau = tauDes;
+
+%%% rep count%%%
+reps=3;
+nthRep=1;
+
+
+%%% Target Selection %%%
+offset=90*pi/180;
+
+%th= (0:30:150)*pi/180; 
+
+%th= (180:30:330)*pi/180; 
+
+
+%th= (0:30:330)*pi/180; %[30 120 240 330]
+theta_= count+1;
+theta= offset-th(theta_);%*pi/180;
+NumTargets= length(th);
+
+% %%% Target Pos %%%
+ 
+ TargetPosx= cos(-theta); 
+ TargetPosy= sin(-theta); 
+ TargetPos =[0 TargetPosy TargetPosx ]'; %target position (coord of center)
+
+
+%%% Cursor Pos %%%
+cursorTauFE = -FEtau/MaxTau(1); % FE cursor tau
+cursorTauRU = RUtau/MaxTau(2); % RU cursor tau
+cursorTau = [-0.01 cursorTauFE cursorTauRU]'; % Define, - sign in y is so E is positive
+%offset= 0.07158;
+
+
+
+%Calculations
+ dx=TargetPos(2)-cursorTau(2);
+ dy=TargetPos(3)-cursorTau(3);
+ d= norm([dx dy]); % distance between cursor and target (distance between centers)
+ Dc= norm([cursorTau(2) cursorTau(3)]);% distance between cursor and home 
+ Dt= norm(TargetPos); % distance between target and home 
+ UserTorqueMag= norm(tauJ);
+ 
+ % %%% Color Change %%%  
+ MaintainPos= [0 0 0]'; %[-0.2 0 0.2]';
+ MovePos= [0 0 0]';
+ ReturnPos= [0 0 0]';
+ StopSim=0;
+Recording=1;
+
+ % text boxes
+ MaintainColor= [1 1 1 0]';
+ %MaintainPos= [0.2 0 0.2]';
+ MoveColor= [0 0 0 0]';
+ ReturnColor= [0 0 0 0]';
+ 
+ %sphere colors
+ TargetColor=[0 0 0 0]'; 
+ HomeColor=[0.85 0 0 0]';
+
+% triggers
+ ResetTimer=0;
+ TargetTimer=0;
+ MovementTimer=0;
+ ClockReset=0;
+
+% Durations
+ResetDuration = 30;
+MovementDuration   = 5;
+TrialDuration = 5;
+%BetweenReps=10;
+
+ % flags
+ CursorInTarget=0;
+ TrialStart=0;
+ MovementFlag=0;
+ 
+ 
+ 
+% state variables
+Reset=0;
+CursorOutsideTarget = 1;
+CursorEnteredTarget = 2;
+TrialInProgress = 3;
+
+
+if isempty(State)
+     State=CursorOutsideTarget;
+end
+
+    switch State
+
+        case Reset
+                if UserTorqueMag<0.15 %&& TimeInReset<ResetDuration
+                            TargetTimer =0;
+                            ResetTimer=1;
+                            MovementTimer=0;
+                            MaintainPos= [0.2 0 0.2]';
+                            MaintainColor= [1 1 1 1]';
+                            ReturnColor= [0 0 0 0]';
+                            TargetColor= [0 0.56 0 0]'; 
+                            HomeColor= [0.85 0 0 1]'; % home changes to default color
+                            
+                            % if successfulTrial==1 && UserTorqueMag<0.05
+                            %     successfulTrial=0;
+                            % end
+                            
+               else
+                            ClockReset=1;
+                            MaintainColor= [0 0 0 0]';
+                            ReturnColor= [1 1 1 1]';
+                            ReturnPos=[0 -0.3 -0.02]';
+                            TargetColor = [0 0 0 0]';   % Yellow (reset phase)
+                            HomeColor   = [0 0.56 0 1]';      % Green home
+                end
+
+        if count ==NumTargets && UserTorqueMag<0.05
+            Recording=0;
+            StopSim=1;
+        end
+
+        if successfulTrial==1 && UserTorqueMag<0.05
+           successfulTrial=0;
+        end
+
+        if TimeInReset>=ResetDuration
+            ClockReset=1;
+            State= CursorOutsideTarget;
+            ResetTimer=0;
+            MovementTimer=1;
+            TargetColor=[0 0.56 0 1]';
+            HomeColor=[0.15 0.15 0.15 0]';
+            ReturnColor= [1 1 1 0]';
+            MaintainColor= [1 1 1 0]';
+            MoveColor= [1 1 1 1]';
+            MovePos=[0 (TargetPos(2)-0.3) (TargetPos(3)-0.02)]';
+        end
+
+        case CursorOutsideTarget
+            ResetTimer=0;
+            MovementTimer=1;
+            TargetColor=[0 0.56 0 1]';
+            HomeColor=[0.15 0.15 0.15 0]';
+            MaintainColor= [1 1 1 0]';
+            MoveColor= [1 1 1 1]';
+            MovePos=[0 (TargetPos(2)-0.3) (TargetPos(3)-0.02)]';
+            
+            if TimeMoving >=MovementDuration
+                State=Reset;
+                ClockReset=1;
+                MovementTimer=0;
+                ErrorCheck=2;
+            end
+            
+            if  d<=0.15*Dt %cursor inside target sphere
+                ClockReset=0;
+                MovementTimer=0;
+                State= CursorEnteredTarget;
+                TargetColor = [0 0.56 0 1]';
+                MaintainColor= [1 1 1 0]';
+                MoveColor= [1 1 1 1]';
+                MovePos=[0 (TargetPos(2)-0.3) (TargetPos(3)-0.02)]';
+            end
+
+
+        case CursorEnteredTarget
+            CursorInTarget=1; %flag set
+            TargetColor = [0 0.56 0 1]';
+            MaintainColor = [0 0 0 0]';
+            MoveColor = [1 1 1 1]';
+            MovePos = [0 (TargetPos(2)-0.3) (TargetPos(3)-0.02)]';
+            MovementTimer=0;
+
+            if d>0.151*Dt
+                State=Reset;
+                %CursorInTarget = 0;
+            end
+            
+            if d<=0.05*Dt
+                State=TrialInProgress;
+                TrialStart=1; 
+                TargetTimer=1;
+            end
+
+        case TrialInProgress
+            if d>0.135   % Left target
+                ClockReset=1;
+                %CursorInTarget = 0;
+                TrialStart = 0;
+                State = Reset;
+                ErrorCheck = 3;
+            else
+                MovementTimer=0;
+                TargetTimer=1;
+                TrialStart = 1;
+                TargetColor = [0.85 0 0 1]';
+                MaintainColor = [1 1 1 1]';
+                MoveColor = [0 0 0 0]';
+                MaintainPos = [0 (TargetPos(2)-0.3) (TargetPos(3)-0.02)]';
+                HomeColor = [0.15 0.15 0.15 0]';
+                ClockReset=0;
+                
+                if TimeInTarget >=TrialDuration
+                    count=count+1;
+                    State = Reset;
+                    successfulTrial = 1;
+                    ClockReset=1;
+                    TargetTimer=0;
+                    TrialStart = 0;
+                    
+                end
+                
+            end
+    end
+
+end
+
+
