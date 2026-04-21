@@ -1,7 +1,7 @@
 # Haptic Feedback System for Isometric Torque Control
 
 ## Overview
-This project focuses on developing a real-time haptic feedback system to provide precise isometric torque control for a robotic wrist exoskeleton. The system enables controlled force interaction between the user and the device.
+The focus is on developing a real-time haptic feedback system to provide force control for a robotic wrist exoskeleton (or any 2-jointed robot). The system enables controlled force interaction between the user and the device.
 
 ## Problem Statement
 Accurate torque feedback is critical in rehabilitation and human-robot interaction systems. The challenge is to design a system that can deliver stable, real-time torque feedback with minimal delay and high precision.
