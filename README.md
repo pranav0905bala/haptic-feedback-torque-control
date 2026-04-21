@@ -11,6 +11,7 @@ Accurate torque feedback is critical in rehabilitation and human-robot interacti
 - Feedback loop for real-time measurement  
 - MATLAB/Simulink-based control system  
 - QUARC for real-time implementation  
+- Custom GUI for real-time monitoring and control 
 
 ## Tech Stack
 - MATLAB  
@@ -18,14 +19,23 @@ Accurate torque feedback is critical in rehabilitation and human-robot interacti
 - QUARC  
 
 ## Implementation
-- Designed and tuned a force-based PI controller for robot movements
+- Designed and tuned a force-based PI controller for robot movements  
 - Integrated hardware feedback with real-time control loop  
-- Performed iterative tuning for system stability  
+- Developed a custom GUI for:
+  - Real-time torque visualization  
+  - System monitoring and debugging  
+  - Parameter tuning (gain adjustment, setpoints)  
 
 ## Results
 - Achieved stable torque tracking under varying conditions  
 - Improved system responsiveness through controller tuning  
-- Reduced steady-state error and oscillations  
+- Reduced steady-state error and oscillations
+- Enabled intuitive system interaction through GUI-based control
+
+##Features
+- Start/stop control for experiments  
+- Adjustable control parameters (PI gains, torque setpoint)  
+- Real-time feedback visualization for debugging and validation
 
 
 ## Future Work
