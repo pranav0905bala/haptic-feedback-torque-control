@@ -24,7 +24,17 @@ Accurate torque feedback is critical in rehabilitation and human-robot interacti
 - Developed a custom GUI for:
   - Real-time torque visualization  
   - System monitoring and debugging  
-  - Parameter tuning (gain adjustment, setpoints)  
+  - Parameter tuning (gain adjustment, setpoints)
+ 
+## Interaction Modes
+- **User Active (Person Active)**:  
+  The participant actively applies torque while the robotic system resists the motion.  
+  This mode evaluates voluntary force generation and user-driven interaction.
+
+- **User Passive (Person Reactive)**:  
+  The robotic system actively applies torque while the participant provides a resistive response.  
+  This mode evaluates how the user reacts to externally applied forces.
+
 
 ## Results
 - Achieved stable torque tracking under varying conditions  
