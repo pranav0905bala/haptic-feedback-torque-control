@@ -1,0 +1,276 @@
+function [GuiSignal, ResetComplete, ForceLatch, TrialStart, TrialComplete, ErrorCheck, StopSim,  TauDes, ClockReset, BufferTimer,TrialDurationTimer, ResetTimer, RampTimer, counter, state] = fcn(Jointpos, maxTorque, tauJ, ClockReset,BufferTime, TrialTime, ResetTime, RampTime, counter, state)
+
+%initialization
+StopSim= 0;
+ResetTimer = 0;
+RampTimer = 0;
+TrialDurationTimer=0;
+BufferTimer=0;
+TauDes   = [0 0]; %force applied by robot
+UserTau=0; % force applied by user
+TrialComplete=0;
+%ForceLatch=0;
+%ForceMagnitude = 0;
+
+%direction sequence
+directions=  [0 180 0 180 0 180]*pi/180;%[0 180][0 180 0 180
+numDirections= length(directions);
+
+
+%current direction
+theta_= counter+1;
+theta = directions(theta_);
+u_dir = [cos(theta) sin(theta)]; %force direction
+
+%reference points
+FEpos = Jointpos(1);
+RUpos = Jointpos(2);
+CursorDist= norm([FEpos RUpos]);
+
+
+% Durations
+ResetDuration = 30;
+TrialDuration = 5;
+BufferDuration=2;
+StopSim=0;
+
+
+% flags
+ TrialStart=0;
+ ResetComplete=0;
+ ErrorCheck=0;
+ ForceLatch=0;
+
+%applied user force threshold
+UserTauThresh= maxTorque(1);
+UserTauThreshU= 1.25*maxTorque(1);
+UserTauThreshL= 0.75*maxTorque(1);
+UserTau = norm(tauJ);
+ 
+% state variables
+Reset=0;
+RampUp = 1; 
+ForceLock=2;
+TrialPeriod=3;
+RampDown=4;
+
+if isempty(state)
+    state = RampUp;
+end
+
+persistent TauPrev ThresholdExceeded RampDownStartForce ForceMagnitude LatchedState
+
+if isempty(LatchedState)
+    LatchedState = 1;
+end
+
+if isempty(ForceMagnitude)
+    ForceMagnitude = 0;
+end
+
+
+if isempty(TauPrev)
+    TauPrev = [0 0];
+end
+
+
+if isempty(ThresholdExceeded)
+    ThresholdExceeded = false;
+end
+
+
+if isempty(RampDownStartForce)
+    RampDownStartForce = [0 0];
+end
+
+switch state
+
+    case Reset
+        %  TrialLock=0;
+            UserTau = 0;
+            TauDes = [0 0];
+            RampTimer = 0;
+            TrialDurationTimer = 0;
+            ThresholdExceeded = false;
+            TauPrev = [0 0];
+            RampDownStartForce = [0 0];
+
+        if  CursorDist<0.03 && ResetTime<=ResetDuration %&& ResetComplete~=1
+                ResetTimer = 1;
+                ClockReset=0;
+
+        elseif CursorDist> 0.08 && ResetTime<=ResetDuration %ResetTime< ResetDuration %&& MovementFlag~=1 CursorDist> 0.02
+                ResetTimer = 0;
+                ClockReset=1;
+
+        end
+
+        if counter ==numDirections && CursorDist<0.03
+                    StopSim=1;
+       end 
+
+        if ResetTime > ResetDuration  %ResetTime > ResetDuration %&& ResetComplete==1 
+            state= RampUp;
+            ResetComplete=1;
+            ClockReset=1;
+            ResetTimer=0;
+        end
+    
+    case RampUp
+        ClockReset=0;
+        RampTimer = 1;
+        ResetComplete=0;
+
+        %%Force Ramp
+        
+        ForceRate= 0.5; %ramp for force applied by robot (Nm/s)
+        if ~ThresholdExceeded 
+            ForceMagnitude= ForceRate*RampTime; 
+            TauDes = ForceMagnitude * u_dir;
+        % else 
+        %     RampTimer = 0; 
+        %     TauDes = TauPrev; %Hold the force constant once resistance is detected 
+        end
+         
+
+        % User exceeds torque threshold
+        if UserTau > UserTauThresh && ~ThresholdExceeded %UserTau >= UserTauThresh ForceLatch == 1
+            ForceLatch=1;
+            RampTimer = 0;
+            ClockReset = 1;     % reset timer for hold
+            ThresholdExceeded = true;
+            TauPrev = TauDes;   % lock force
+            state = ForceLock;
+        end
+
+         if RampTime>=15
+            state = RampDown;
+            RampDownStartForce = TauDes; 
+        end
+    
+    case ForceLock
+        
+        ClockReset=0;
+        TauDes = TauPrev;
+        ForceLatch=1;
+        % BufferTimer=1;
+
+        % Clock to track total for ForceLock
+        RampTimer = 1;
+
+         if ThresholdExceeded && UserTau > UserTauThreshL %&& TrialStart==1 %&& UserTau < 1.15*maxTorque(1) && UserTau > 0.85*maxTorque(1)
+             %state= TrialPeriod;
+              BufferTimer=1;
+         elseif UserTau > UserTauThreshU 
+              state = RampDown;
+              RampDownStartForce = TauPrev;    
+         else
+             BufferTimer=0;
+             ClockReset=1;
+         end
+
+         if BufferTime>=BufferDuration
+             state= TrialPeriod;
+             ForceLatch=0;
+             BufferTimer=0;
+             ClockReset=1;
+         end
+
+         if RampTime>=4
+            state = RampDown;
+            RampDownStartForce = TauPrev; 
+         end
+
+     % Trial
+    case TrialPeriod
+         
+         TauDes = TauPrev;
+         ClockReset = 0; 
+
+        if  UserTau < UserTauThreshU && UserTau > UserTauThreshL % trial complete ThresholdExceeded && 
+                TrialDurationTimer = 1;
+                TrialStart=1;
+
+        elseif  UserTau > UserTauThreshU || UserTau < UserTauThreshL
+                TrialDurationTimer=0;
+                TrialStart=0;
+                ErrorCheck=1;
+                ClockReset = 1;
+                RampDownStartForce = TauPrev; 
+                state = RampDown;     
+        end
+
+        if TrialTime>=TrialDuration
+            state = RampDown;
+            RampDownStartForce = TauPrev; 
+            counter=counter+1;
+            TrialStart=0;
+            TrialComplete=1;
+        end
+
+
+
+    case RampDown
+        % Smooth ramp down to zero
+        ErrorCheck=0;
+        ClockReset = 0; 
+        TrialComplete=0;
+        ResetTimer = 0;
+        RampDownDuration = 2;
+
+        if RampTime < RampDownDuration
+            % Linear ramp down
+            s = 1 - (RampTime / RampDownDuration);
+            TauDes = s * RampDownStartForce;
+            RampTimer = 1;
+        else
+            % Ramp complete, go to reset
+            TauDes = [0 0];
+            state = Reset;
+            ClockReset = 1;
+            RampTimer = 0;
+        end
+        TrialDurationTimer = 0;
+
+end
+
+switch LatchedState
+
+    case 0  % Reset
+        if ResetComplete == 1
+            LatchedState = 1;
+        end
+
+    case 1  % Ready
+        if ForceLatch==1
+            LatchedState = 2;
+        end
+
+    case 2  % Active
+        if TrialStart==1
+            LatchedState = 2;
+        elseif  ErrorCheck== 1
+            LatchedState = 0;
+       elseif TrialComplete == 1         
+            LatchedState = 0;
+        end
+
+    case 3  % Success
+        if state == RampDown
+            LatchedState = 3;
+        end
+
+    case 4  % Fail
+        if ErrorCheck== 1
+            LatchedState = 0;
+        end
+
+end
+
+% if ThresholdExceeded
+%     TauDes = TauPrev;
+% end
+
+GuiSignal = LatchedState;
+
+end
